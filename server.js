@@ -58,6 +58,37 @@ app.post("/register", async function (req, res) {
   }
 });
 
+// Login endpoint for user authentication
+app.post("/login", async function (req, res) {
+  try {
+    // Find the user in the database based on the provided username
+    const user = await db
+      .collection("details")
+      .findOne({ username: req.body.username });
+
+    // Check if the user exists
+    if (user) {
+      // Compare the provided password with the hashed password in the database
+      const result = await bcrypt.compare(req.body.password, user.password);
+
+      if (result) {
+        // Set the username in the session upon successful login
+        req.session.username = req.body.username;
+        res.send(`Welcome! ${req.session.username}`);
+      } else {
+        // Respond with an error if the password doesn't match
+        res.status(400).json({ error: "Password doesn't match" });
+      }
+    } else {
+      // Respond with an error if the user doesn't exist
+      res.status(400).json({ error: "User doesn't exist" });
+    }
+  } catch (error) {
+    // Respond with an error message in case of an exception
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Start the server on port 3000
 app.listen(3000, function () {
   console.log("Server is running on port 3000");
