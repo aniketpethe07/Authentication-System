@@ -1,11 +1,14 @@
 const express = require("express");
+const dotenv = require("dotenv");
 const bodyParser = require("body-parser");
-const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
+const connectDb = require("./dbConnection");
 const session = require("express-session");
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
+
+dotenv.config();
+connectDb();
 
 // Configure session middleware
 app.use(
@@ -19,77 +22,11 @@ app.use(
 //Middleware to parse incoming requests with JSON payloads
 app.use(express.json());
 
-// Connect to MongoDB
-mongoose.connect("mongodb://localhost:27017/CRUD");
-const db = mongoose.connection;
-
 // Register endpoint for user registration
-app.post("/register", async function (req, res) {
-  try {
-    // Extract username and password from the request body
-    const username = req.body.username;
-    const password = req.body.password;
-
-    // Validate input
-    if (!username || !password) {
-      return res
-        .status(400)
-        .json({ error: "Username and password are required" });
-    }
-
-    // Hash the password before storing it in the database
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create a data object to insert into the database
-    const data = {
-      username: username,
-      password: hashedPassword,
-    };
-
-    // Insert the data into the "details" collection in the database
-    await db.collection("details").insertOne(data);
-
-    // Respond with a success message
-    res.json({ message: "Record inserted successfully" });
-  } catch (error) {
-    // Log and respond with an error message in case of an exception
-    console.error("Error registering user:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-// Login endpoint for user authentication
-app.post("/login", async function (req, res) {
-  try {
-    // Find the user in the database based on the provided username
-    const user = await db
-      .collection("details")
-      .findOne({ username: req.body.username });
-
-    // Check if the user exists
-    if (user) {
-      // Compare the provided password with the hashed password in the database
-      const result = await bcrypt.compare(req.body.password, user.password);
-
-      if (result) {
-        // Set the username in the session upon successful login
-        req.session.username = req.body.username;
-        res.send(`Welcome! ${req.session.username}`);
-      } else {
-        // Respond with an error if the password doesn't match
-        res.status(400).json({ error: "Password doesn't match" });
-      }
-    } else {
-      // Respond with an error if the user doesn't exist
-      res.status(400).json({ error: "User doesn't exist" });
-    }
-  } catch (error) {
-    // Respond with an error message in case of an exception
-    res.status(400).json({ error: error.message });
-  }
-});
+app.use("/", require("./routes"));
 
 // Start the server on port 3000
-app.listen(3000, function () {
-  console.log("Server is running on port 3000");
+const port = process.env.PORT;
+app.listen(port, function () {
+  console.log(`Server is running on port ${port}`);
 });
